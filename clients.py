@@ -26,13 +26,6 @@ class KalshiBaseClient:
         private_key: rsa.RSAPrivateKey,
         environment: Environment = Environment.DEMO,
     ):
-        """Initializes the client with the provided API key and private key.
-
-        Args:
-            key_id (str): Your Kalshi API key ID.
-            private_key (rsa.RSAPrivateKey): Your RSA private key.
-            environment (Environment): The API environment to use (DEMO or PROD).
-        """
         self.key_id = key_id
         self.private_key = private_key
         self.environment = environment
@@ -42,29 +35,27 @@ class KalshiBaseClient:
             self.HTTP_BASE_URL = "https://demo-api.kalshi.co"
             self.WS_BASE_URL = "wss://demo-api.kalshi.co"
         elif self.environment == Environment.PROD:
-            self.HTTP_BASE_URL = "https://api.elections.kalshi.com"
-            self.WS_BASE_URL = "wss://api.elections.kalshi.com"
+            self.HTTP_BASE_URL = "https://api.kalshi.com"
+            self.WS_BASE_URL = "wss://api.kalshi.com"
         else:
             raise ValueError("Invalid environment")
 
     def request_headers(self, method: str, path: str) -> Dict[str, Any]:
         """Generates the required authentication headers for API requests."""
-        current_time_milliseconds = int(time.time() * 1000)
+        timestamp = datetime.now().timestamp()
+        current_time_milliseconds = int(timestamp * 1000)
         timestamp_str = str(current_time_milliseconds)
 
-        # Remove query params from path
-        path_parts = path.split('?')
-
-        msg_string = timestamp_str + method + path_parts[0]
+        # Create message string exactly as documented
+        msg_string = timestamp_str + method + path
         signature = self.sign_pss_text(msg_string)
 
-        headers = {
-            "Content-Type": "application/json",
-            "KALSHI-ACCESS-KEY": self.key_id,
-            "KALSHI-ACCESS-SIGNATURE": signature,
-            "KALSHI-ACCESS-TIMESTAMP": timestamp_str,
+        return {
+            'Content-Type': 'application/json',
+            'KALSHI-ACCESS-KEY': self.key_id,
+            'KALSHI-ACCESS-SIGNATURE': signature,
+            'KALSHI-ACCESS-TIMESTAMP': timestamp_str
         }
-        return headers
 
     def sign_pss_text(self, text: str) -> str:
         """Signs the text using RSA-PSS and returns the base64 encoded signature."""
@@ -83,15 +74,10 @@ class KalshiBaseClient:
             raise ValueError("RSA sign PSS failed") from e
 
 class KalshiHttpClient(KalshiBaseClient):
-    """Client for handling HTTP connections to the Kalshi API."""
-    def __init__(
-        self,
-        key_id: str,
-        private_key: rsa.RSAPrivateKey,
-        environment: Environment = Environment.DEMO,
-    ):
+    def __init__(self, key_id: str, private_key: rsa.RSAPrivateKey, environment: Environment = Environment.DEMO):
         super().__init__(key_id, private_key, environment)
         self.host = self.HTTP_BASE_URL
+        # Simplified API endpoints
         self.exchange_url = "/trade-api/v2/exchange"
         self.markets_url = "/trade-api/v2/markets"
         self.portfolio_url = "/trade-api/v2/portfolio"
@@ -114,22 +100,31 @@ class KalshiHttpClient(KalshiBaseClient):
     def post(self, path: str, body: dict) -> Any:
         """Performs an authenticated POST request to the Kalshi API."""
         self.rate_limit()
+        full_url = self.host + path
+        print(f"Making POST request to: {full_url}")  # Debug print
+        
         response = requests.post(
-            self.host + path,
+            full_url,
             json=body,
             headers=self.request_headers("POST", path)
         )
-        self.raise_if_bad_response(response)
+        if response.status_code == 404:
+            print(f"404 Error Details: {response.text}")
+        response.raise_for_status()
         return response.json()
 
     def get(self, path: str, params: Dict[str, Any] = {}) -> Any:
         """Performs an authenticated GET request to the Kalshi API."""
         self.rate_limit()
+        full_url = self.host + path
+        print(f"Making GET request to: {full_url}")  # Debug print
         response = requests.get(
-            self.host + path,
+            full_url,
             headers=self.request_headers("GET", path),
             params=params
         )
+        if response.status_code == 404:
+            print(f"404 Error Details: {response.text}")  # Debug print
         self.raise_if_bad_response(response)
         return response.json()
 
@@ -144,33 +139,40 @@ class KalshiHttpClient(KalshiBaseClient):
         self.raise_if_bad_response(response)
         return response.json()
 
+    def get_markets(self) -> Dict[str, Any]:
+        """Gets list of available markets."""
+        return self.get(self.markets_url)
+
+    def get_market_by_ticker(self, ticker: str) -> Dict[str, Any]:
+        """Gets specific market details."""
+        return self.get(f"{self.markets_url}/{ticker}")
+
     def get_balance(self) -> Dict[str, Any]:
-        """Retrieves the account balance."""
-        return self.get(self.portfolio_url + '/balance')
+        """Gets current account balance."""
+        return self.get(f"{self.portfolio_url}/balance")
 
     def get_exchange_status(self) -> Dict[str, Any]:
-        """Retrieves the exchange status."""
-        return self.get(self.exchange_url + "/status")
+        """Gets exchange status."""
+        return self.get(f"{self.exchange_url}/status")
 
-    def get_trades(
-        self,
-        ticker: Optional[str] = None,
-        limit: Optional[int] = None,
-        cursor: Optional[str] = None,
-        max_ts: Optional[int] = None,
-        min_ts: Optional[int] = None,
-    ) -> Dict[str, Any]:
-        """Retrieves trades based on provided filters."""
-        params = {
-            'ticker': ticker,
-            'limit': limit,
-            'cursor': cursor,
-            'max_ts': max_ts,
-            'min_ts': min_ts,
+    def create_order(self, ticker: str, side: str, count: int, price: int) -> Dict[str, Any]:
+        """Place a new order."""
+        body = {
+            "ticker": ticker,
+            "side": side,          # "buy" or "sell"
+            "count": count,        # number of contracts
+            "price": price,        # price in cents
+            "type": "limit"        # order type
         }
-        # Remove None values
-        params = {k: v for k, v in params.items() if v is not None}
-        return self.get(self.markets_url + '/trades', params=params)
+        return self.post(f"{self.markets_url}/orders", body)
+
+    def get_market_orderbook(self, ticker: str) -> Dict[str, Any]:
+        """Get orderbook for a specific market."""
+        return self.get(f"{self.markets_url}/{ticker}/orderbook")
+
+    def get_market_history(self, ticker: str) -> Dict[str, Any]:
+        """Get price history for a market."""
+        return self.get(f"{self.markets_url}/{ticker}/history")
 
 class KalshiWebSocketClient(KalshiBaseClient):
     """Client for handling WebSocket connections to the Kalshi API."""
