@@ -2,17 +2,18 @@
 private_key.pem
 *.pem
 *key*
+.env
 
 # Collected data
 historical_data/
 collected_data/
 *.json
+!requirements.json
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
 .Python
 env/
 build/
@@ -40,3 +41,8 @@ cmumscf/
 .idea/
 .vscode/
 *.swp
+
+# Jupyter
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
