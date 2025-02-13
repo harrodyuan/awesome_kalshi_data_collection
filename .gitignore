@@ -51,3 +51,8 @@ cmumscf/
 .ipynb_checkpoints
 *.ipynb_checkpoints/
 notebooks/.ipynb_checkpoints/
+
+# Mac specific
+.DS_Store
+.DS_Store?
+._*
