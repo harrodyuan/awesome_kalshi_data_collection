@@ -1,4 +1,4 @@
-# Private and sensitive files
+# Authentication
 private_key.pem
 *.pem
 *key*
@@ -10,12 +10,17 @@ collected_data/
 *.json
 !requirements.json
 
+# Local environment files
+.env
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 .Python
 env/
+venv/
+.venv/
 build/
 develop-eggs/
 dist/

@@ -1,10 +1,14 @@
 import os
 from datetime import datetime
+
+# Import classes from other modules
 from auth_manager import AuthManager
 from events_collector import EventsCollector
 from market_collector import MarketCollector
 from event_analyzer import EventAnalyzer
 
+global MAX_EVENTS # Maximum number of events to process
+MAX_EVENTS = 1
 class DataPipeline:
     def __init__(self):
         self.auth = AuthManager(
@@ -28,11 +32,11 @@ class DataPipeline:
             # 2. Collect Markets
             print("\n2. Collecting Markets...")
             market_collector = MarketCollector(self.auth)
-            markets_file = market_collector.collect_all_markets(events_file)
+            markets_file = market_collector.collect_all_markets(events_file=events_file, max_events=MAX_EVENTS)
             print(f"Markets saved to: {markets_file}")
             
             # 3. Analyze Data
-            print("\n3. Analyzing Data...")
+            print("\n3. Analyzing Event Data...")
             analyzer = EventAnalyzer()
             summary = analyzer.analyze_existing_data(events_file)
             analyzer.print_summary(summary)

@@ -89,12 +89,12 @@ class EventsCollector:
         
         return filename
 
-if __name__ == "__main__":
-    auth = AuthManager(
-        key_id="05b95ed4-a236-41a1-9e3b-81124f6871dd",
-        key_file_path="private_key.pem"
-    )
+# if __name__ == "__main__":
+#     auth = AuthManager(
+#         key_id="05b95ed4-a236-41a1-9e3b-81124f6871dd",
+#         key_file_path="private_key.pem"
+#     )
     
-    collector = EventsCollector(auth)
-    events_file = collector.collect_events()
-    print(f"\nCollection complete. Data saved to: {events_file}")
+#     collector = EventsCollector(auth)
+#     events_file = collector.collect_events()
+#     print(f"\nCollection complete. Data saved to: {events_file}")

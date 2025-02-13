@@ -10,6 +10,7 @@ class MarketCollector:
     def __init__(self, auth_manager: AuthManager):
         self.market_data = MarketDataManager(auth_manager)
         self.data_dir = "historical_data"
+        self.date = datetime.now().strftime('%Y%m%d')
         self.ensure_directories()
         
     def ensure_directories(self):
@@ -90,11 +91,12 @@ class MarketCollector:
                 
         return None
 
-    def collect_all_markets(self, events_file: str = "events_20250211.json", max_events: int = 10000) -> str:
+    def collect_all_markets(self, events_file, max_events) -> str:
         """Collect markets from events file with limit."""
         # Load checkpoint
         checkpoint = self.load_checkpoint()
         processed_events = set(checkpoint['processed_events'])
+        
 
         # Load events
         with open(events_file, 'r') as f:
@@ -108,9 +110,11 @@ class MarketCollector:
         print(f"Processing up to {max_events} events from {events_file}")
         print(f"Already processed: {len(processed_events)} events")
 
+        events_processed = 0
+
         try:
             # Collect markets for each event
-            events_processed = 0
+            
             for i, event in enumerate(events, 1):
                 if events_processed >= max_events:
                     print(f"\nReached maximum event limit of {max_events}")
@@ -153,6 +157,7 @@ class MarketCollector:
                         print(f"Checkpoint saved: {len(processed_events)} events processed")
 
                 # Rate limiting
+                
                 time.sleep(0.5)
 
         except KeyboardInterrupt:
@@ -180,12 +185,13 @@ class MarketCollector:
             print(f"Processed {events_processed} events")
             return output_file
 
-if __name__ == "__main__":
-    auth = AuthManager(
-        key_id="05b95ed4-a236-41a1-9e3b-81124f6871dd",
-        key_file_path="private_key.pem"
-    )
+# if __name__ == "__main__":
+#     auth = AuthManager(
+#         key_id="05b95ed4-a236-41a1-9e3b-81124f6871dd",
+#         key_file_path="private_key.pem"
+#     )
     
-    collector = MarketCollector(auth)
-    markets_file = collector.collect_all_markets(max_events=10000)  # Set limit to 10000 events
-    print(f"Collection complete. Market data saved to: {markets_file}")
+#     collector = MarketCollector(auth)
+#     date_today = collector.date
+#     markets_file = collector.collect_all_markets(events_file=f"historical_data/events/events_{date_today}.json", max_events=10)
+#     print(f"Collection complete. Market data saved to: {markets_file}")
