@@ -5,6 +5,7 @@ from typing import Dict, List
 from auth_manager import AuthManager
 from market_data import MarketDataManager
 
+
 class EventsCollector:
     def __init__(self, auth_manager: AuthManager):
         self.market_data = MarketDataManager(auth_manager)

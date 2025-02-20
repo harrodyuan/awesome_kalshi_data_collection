@@ -47,7 +47,7 @@ class OpenMarketCollector:
         processed_events = self.load_checkpoint()
         
         # First load open events
-        open_events_file = os.path.join(self.data_dir, "events", f"open_events_{date_str}.json")
+        open_events_file = os.path.join(self.data_dir, "open_events", f"events_{date_str}.json")
         with open(open_events_file, 'r') as f:
             events_data = json.load(f)
             event_tickers = [event['event_ticker'] for event in events_data.get('events', [])]

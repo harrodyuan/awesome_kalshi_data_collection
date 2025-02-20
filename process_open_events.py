@@ -7,7 +7,7 @@ import sys
 class EventProcessor:
     def __init__(self, json_file_path):
         self.data_dir = "historical_data"
-        self.json_file_path = os.path.join(self.data_dir, "events", json_file_path)
+        self.json_file_path = os.path.join(self.data_dir, "open_events", json_file_path)
         self.ensure_directories()
         
     def ensure_directories(self):
@@ -72,7 +72,7 @@ def main():
         date_str = datetime.now().strftime("%Y%m%d")
     
     # File paths
-    input_path = f"open_events_{date_str}.json"
+    input_path = f"events_{date_str}.json"
     output_path = f"processed_events_{date_str}.csv"
     
     print(f"Processing data for date: {date_str}")

@@ -115,7 +115,6 @@ class MarketDetailsProcessor:
 
     def process_markets(self, date_str: str) -> pd.DataFrame:
         """Process all markets and create expanded DataFrame."""
-        # Load processed events
         events_df = self.load_processed_events(date_str)
         print(f"\nLoaded {len(events_df)} events to process")
         
@@ -133,94 +132,74 @@ class MarketDetailsProcessor:
                 markets = self.get_market_details(event_ticker, date_str)
                 
                 if markets:
-                    # Add event information using exact column names from events CSV
                     for market in markets:
                         market.update({
                             'event_timestamp': event['timestamp'],
                             'event_total_open_events': event['total_open_events'],
                             'event_series_ticker': event['series_ticker'],
-                            'event_ticker': event['event_ticker'],  # Keep original event_ticker for reference
+                            'event_ticker': event['event_ticker'],
                             'event_title': event['title'],
                             'event_sub_title': event['sub_title'],
                             'event_category': event['category'],
                             'event_collateral_return_type': event.get('collateral_return_type', ''),
                             'event_mutually_exclusive': event['mutually_exclusive'],
                             'event_strike_date': event['strike_date'],
-                            'category': event['category']  # Use event's category instead of market's empty category
+                            'category': event['category']
                         })
                     
                     all_markets.extend(markets)
                     print(f"Added {len(markets)} markets for {event_ticker}")
                 
             except Exception as e:
-                print(f"Error processing event {idx} ({event_ticker}): {str(e)}")
+                print(f"Error processing event {idx}: {str(e)}")
                 continue
 
-        # Create DataFrame from all markets
         if not all_markets:
             print("Warning: No markets processed")
             return pd.DataFrame()
             
         markets_df = pd.DataFrame(all_markets)
         
-        # Add derived columns
         try:
             if not markets_df.empty:
-                # Add basic derived columns
                 markets_df['bid_ask_spread'] = markets_df['yes_ask'] - markets_df['yes_bid']
                 markets_df['mid_price'] = (markets_df['yes_bid'] + markets_df['yes_ask']) / 2
                 markets_df['market_implied_probability'] = markets_df['mid_price'] / 100
                 
-                # Handle timezone-aware datetime calculations
-                try:
-                    markets_df['expiration_time'] = pd.to_datetime(markets_df['expiration_time'])
-                    markets_df['collection_timestamp'] = pd.to_datetime(markets_df['collection_timestamp'])
-                    
-                    # Convert to UTC if timezone-aware
-                    if markets_df['expiration_time'].dt.tz is not None:
-                        markets_df['expiration_time'] = markets_df['expiration_time'].dt.tz_convert('UTC')
-                    if markets_df['collection_timestamp'].dt.tz is not None:
-                        markets_df['collection_timestamp'] = markets_df['collection_timestamp'].dt.tz_convert('UTC')
-                    
-                    # Strip timezone info for calculation
-                    markets_df['expiration_time'] = markets_df['expiration_time'].dt.tz_localize(None)
-                    markets_df['collection_timestamp'] = markets_df['collection_timestamp'].dt.tz_localize(None)
-                    
-                    markets_df['days_to_expiration'] = (markets_df['expiration_time'] - 
-                                                      markets_df['collection_timestamp']).dt.total_seconds() / (24*60*60)
-                except Exception as e:
-                    print(f"Warning: Error calculating days_to_expiration: {e}")
-                    markets_df['days_to_expiration'] = None
+                # Handle dates
+                markets_df['expiration_time'] = pd.to_datetime(markets_df['expiration_time'])
+                markets_df['collection_timestamp'] = pd.to_datetime(markets_df['collection_timestamp'])
                 
-                # Add market count per event
+                if markets_df['expiration_time'].dt.tz is not None:
+                    markets_df['expiration_time'] = markets_df['expiration_time'].dt.tz_convert('UTC')
+                if markets_df['collection_timestamp'].dt.tz is not None:
+                    markets_df['collection_timestamp'] = markets_df['collection_timestamp'].dt.tz_convert('UTC')
+                
+                markets_df['expiration_time'] = markets_df['expiration_time'].dt.tz_localize(None)
+                markets_df['collection_timestamp'] = markets_df['collection_timestamp'].dt.tz_localize(None)
+                
+                markets_df['days_to_expiration'] = (markets_df['expiration_time'] - 
+                                                  markets_df['collection_timestamp']).dt.total_seconds() / (24*60*60)
+                
                 markets_df['markets_in_event'] = markets_df.groupby('event_ticker')['ticker'].transform('count')
                 
-                # Format timestamps safely with ISO8601 parsing
+                # Format timestamps
                 for col in ['open_time', 'close_time', 'expiration_time']:
                     try:
-                        # Parse ISO8601 timestamps with UTC timezone
                         markets_df[f'{col}_formatted'] = pd.to_datetime(
                             markets_df[col], 
-                            format='ISO8601'  # This handles various ISO8601 formats including microseconds
+                            format='ISO8601'
                         ).dt.strftime('%Y-%m-%d %H:%M:%S')
-                    except Exception as e:
-                        print(f"Warning: Error formatting {col}: {e}")
-                        # Fallback: keep original values
+                    except:
                         markets_df[f'{col}_formatted'] = markets_df[col]
 
-                # Ensure category is string type
                 markets_df['category'] = markets_df['category'].fillna('')
                 
         except Exception as e:
             print(f"Error adding derived columns: {str(e)}")
-            print("Continuing with basic market data...")
 
         # Save processed markets
-        output_file = os.path.join(
-            self.data_dir,
-            "processed_markets",
-            f"processed_markets_{date_str}.csv"
-        )
+        output_file = os.path.join(self.data_dir, "processed_markets", f"processed_markets_{date_str}.csv")
         markets_df.to_csv(output_file, index=False)
         
         print(f"\nProcessed {len(markets_df)} markets from {len(events_df)} events")
