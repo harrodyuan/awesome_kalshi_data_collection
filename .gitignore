@@ -10,6 +10,9 @@ collected_data/
 *.json
 !requirements.json
 
+# playground
+playground/
+
 # Local environment files
 .env
 
