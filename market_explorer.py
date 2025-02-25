@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Dict, Any
 import pandas as pd
 from tabulate import tabulate
+import time
 
 class MarketExplorer:
     def __init__(self):
@@ -21,11 +22,16 @@ class MarketExplorer:
     def fetch_all_events(self):
         """Fetch all events using pagination."""
         all_events = []
-        cursor = None
+        cursor = None 
         total_pages = 0
+        max_pages = 11  # Limit to 11 pages
         
         try:
             while True:
+                # Break if we've reached max pages
+                if total_pages >= max_pages:
+                    break
+                    
                 # Get response
                 response = self.market_data.get_events(cursor=cursor)
                 
@@ -184,6 +190,88 @@ class MarketExplorer:
             for ask in orderbook['asks'][:5]:  # Show top 5 asks
                 print(f"Price: {ask['price']}, Size: {ask['size']}")
 
+    def analyze_event_markets(self, event_ticker: str):
+        """Analyze markets for a specific event ticker."""
+        try:
+            # Fetch current market data
+            response = self.market_data.get_markets(event_ticker)
+            markets = response.get('markets', [])
+            
+            if not markets:
+                print(f"No markets found for event {event_ticker}")
+                return
+
+            # Create DataFrame with market analysis
+            market_data = []
+            for market in markets:
+                bid_ask_spread = (market.get('yes_ask', 0) - market.get('yes_bid', 0))
+                implied_prob = (market.get('yes_bid', 0) + market.get('yes_ask', 0)) / 2 / 100
+                
+                market_info = {
+                    'Ticker': market.get('ticker'),
+                    'Title': market.get('title'),
+                    'Yes Bid': market.get('yes_bid'),
+                    'Yes Ask': market.get('yes_ask'), 
+                    'No Bid': market.get('no_bid'),
+                    'No Ask': market.get('no_ask'),
+                    'Bid/Ask Spread': bid_ask_spread,
+                    'Mid Price': (market.get('yes_bid', 0) + market.get('yes_ask', 0)) / 2,
+                    'Implied Prob': f"{implied_prob:.2%}",
+                    'Volume': market.get('volume'),
+                    'Volume 24h': market.get('volume_24h'),
+                    'Open Interest': market.get('open_interest'),
+                    'Liquidity': f"${market.get('liquidity', 0)/100:.2f}",
+                    'Status': market.get('status'),
+                }
+                market_data.append(market_info)
+
+            df = pd.DataFrame(market_data)
+            
+            print(f"\nMarket Analysis for {event_ticker}")
+            print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print("=" * 100)
+            
+            # Print summary statistics
+            print("\nSummary Statistics:")
+            print(f"Total Markets: {len(markets)}")
+            print(f"Active Markets: {len([m for m in markets if m['status'] == 'active'])}")
+            print(f"Total Volume: {sum([m.get('volume', 0) for m in markets])}")
+            
+            # Show detailed market data
+            print("\nDetailed Market Data:")
+            print(tabulate(df, headers='keys', tablefmt='grid', showindex=False))
+            
+            # Show orderbook for highest volume market
+            highest_volume_market = max(markets, key=lambda x: x.get('volume', 0))
+            self.display_market_details(highest_volume_market['ticker'])
+
+        except Exception as e:
+            print(f"Error analyzing markets: {e}")
+            return
+
+    def display_market_details(self, market_ticker):
+        # Get and display orderbook
+        print("\nOrderbook for highest volume market ({}):".format(market_ticker))
+        try:
+            orderbook = self.market_data.get_market_orderbook(market_ticker)
+            
+            print("\nTop 5 Bids:")
+            if 'bids' in orderbook:
+                for bid in orderbook['bids'][:5]:
+                    print(f"Price: {bid['price']}, Size: {bid['size']}")
+            else:
+                print("No bids available")
+                
+            print("\nTop 5 Asks:")
+            if 'asks' in orderbook:
+                for ask in orderbook['asks'][:5]:
+                    print(f"Price: {ask['price']}, Size: {ask['size']}")
+            else:
+                print("No asks available")
+        
+        except Exception as e:
+            print(f"Error fetching orderbook: {e}")
+
     def interactive_menu(self):
         """Interactive menu for exploring markets."""
         while True:
@@ -206,6 +294,26 @@ class MarketExplorer:
             else:
                 print("Invalid choice!")
 
+    def run(self):
+        """Run the explorer with direct event ticker input."""
+        while True:
+            print("\nKalshi Market Explorer")
+            print("1. Enter Event Ticker")
+            print("2. Browse Events") 
+            print("3. Exit")
+            
+            choice = input("Select option (1-3): ")
+            
+            if choice == "1":
+                event_ticker = input("Enter event ticker: ").strip().upper()
+                self.analyze_event_markets(event_ticker)
+            elif choice == "2":
+                self.interactive_menu()
+            elif choice == "3":
+                break
+            else:
+                print("Invalid choice!")
+
 if __name__ == "__main__":
     explorer = MarketExplorer()
-    explorer.interactive_menu()
+    explorer.run()
