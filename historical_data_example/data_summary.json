@@ -1,0 +1,28 @@
+{
+  "events_by_category": {
+    "COVID-19": 57,
+    "Climate and Weather": 18963,
+    "Companies": 369,
+    "Crypto": 49713,
+    "Economics": 67143,
+    "Education": 3,
+    "Elections": 672,
+    "Entertainment": 2187,
+    "Financials": 31968,
+    "Health": 93,
+    "Politics": 2871,
+    "Science & Technology": 45,
+    "Science and Technology": 273,
+    "Social": 9,
+    "Sports": 60,
+    "Transportation": 408,
+    "World": 51
+  },
+  "events_by_status": {
+    "unknown": 174885
+  },
+  "latest_collection": "2025-02-11T02:21:04.365572",
+  "market_types": [],
+  "total_events": 58295,
+  "total_markets": 0
+}

@@ -7,7 +7,7 @@ private_key.pem
 # Collected data
 historical_data/
 collected_data/
-*.json
+# *.json
 !requirements.json
 
 # playground
